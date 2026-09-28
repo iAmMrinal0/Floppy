@@ -2008,6 +2008,7 @@ if BASE_URL:
     SESSION_COOKIE_PATH = BASE_URL
 
 SOCIALACCOUNT_LOGIN_ON_GET = True
+SOCIALACCOUNT_ADAPTER = "users.socialaccount_adapter.StaleCallbackSocialAccountAdapter"
 
 SOCIAL_PROVIDERS = config("SOCIAL_PROVIDERS", default="", cast=Csv())
 INSTALLED_APPS += SOCIAL_PROVIDERS
