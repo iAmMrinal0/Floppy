@@ -78,7 +78,7 @@
               hx-get="{% media_view_url 'history_modal' history_item %}"
               hx-vals='{"return_url": "{{ detail_return_url|urlencode }}"}'
               hx-target="#{% component_id 'history' history_item %}"
-              hx-trigger="click once"
+              hx-trigger="click"
               @click="historyOpen = true">
         {% include "app/icons/history.svg" with classes="w-4 h-4" %}
       </button>

@@ -136,6 +136,11 @@ function trackModalGetStateKeyFromExpression(expression) {
   if (expression.includes("trackOpen")) {
     return "trackOpen";
   }
+  // Editing a watch from a history modal swaps the track form into that
+  // modal, so its close button has to close the history modal.
+  if (expression.includes("historyOpen")) {
+    return "historyOpen";
+  }
 
   return null;
 }
@@ -179,6 +184,9 @@ function trackModalFindStateTarget(target) {
           }
           if (Object.prototype.hasOwnProperty.call(data, "trackOpen")) {
             return { host: node, stateKey: "trackOpen" };
+          }
+          if (Object.prototype.hasOwnProperty.call(data, "historyOpen")) {
+            return { host: node, stateKey: "historyOpen" };
           }
         }
       } catch {

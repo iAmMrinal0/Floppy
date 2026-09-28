@@ -36,7 +36,7 @@
               hx-get="{% media_view_url 'history_modal' track_data.music.item %}"
               hx-vals='{"return_url": "{{ request.get_full_path|urlencode }}"}'
               hx-target="#history-modal-{{ track_data.track.id }}"
-              hx-trigger="click once"
+              hx-trigger="click"
               @click="historyOpen = true">
         {% include "app/icons/history.svg" with classes="w-4 h-4" %}
       </button>

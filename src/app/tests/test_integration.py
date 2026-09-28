@@ -567,6 +567,44 @@ class IntegrationTest(StaticLiveServerTestCase):
         modal.get_by_role("button", name="Close").click()
         expect(visible_modals).to_have_count(0)
 
+    def test_episode_history_edit_modal_close_button(self):
+        """Closing a watch edited from the history modal works and resets it."""
+        self.search_and_submit("breaking bad")
+        expect(self.page.locator("h2", has_text="Search Results")).to_be_visible()
+        self.page.get_by_title("Breaking Bad", exact=True).click()
+        expect(self.page.get_by_role("main")).to_contain_text("Breaking Bad")
+        season_href = self.page.locator(
+            'a[href*="/season/1"]',
+        ).first.get_attribute("href")
+        self.page.goto(f"{self.live_server_url}{season_href}")
+        self.page.locator('button[title="Track Episode"]:visible').first.click()
+        with self.page.expect_request(
+            lambda request: request.method == "POST" and "/episode_save" in request.url,
+        ) as save_request:
+            self.page.locator("[data-track-modal-root]:visible").first.get_by_role(
+                "button", name="Add", exact=True
+            ).click()
+        save_request.value.response()
+        self.page.reload()
+
+        history_button = self.page.locator(
+            'button[title="View your activity history"]:visible',
+        ).first
+        history_button.click()
+        history = self.page.locator("[data-history-modal-root]:visible").first
+        expect(history).to_contain_text("Activity History")
+        # The edit button only shows on hover.
+        history.locator('button[title="Edit"]').first.evaluate("el => el.click()")
+        track_modal = self.page.locator("[data-track-modal-root]:visible").first
+        expect(track_modal).to_be_visible()
+        track_modal.get_by_role("button", name="Close").click()
+        expect(self.page.locator("[data-track-modal-root]:visible")).to_have_count(0)
+
+        history_button.click()
+        expect(
+            self.page.locator("[data-history-modal-root]:visible").first
+        ).to_contain_text("Activity History")
+
     def test_tv_completed(self):
         """Test the completed status of a TV show."""
         self.search_and_submit("breaking bad")
