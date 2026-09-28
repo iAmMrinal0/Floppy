@@ -25,7 +25,14 @@ cd "$(dirname "$0")/.."
 APPS=(app users integrations lists events api config)
 COMMON=(--parallel --buffer)
 
-FLOPPY_TEST_TIMEOUT="${FLOPPY_TEST_TIMEOUT:-2700}"
+# Targeted runs finish in a few minutes even with migrations replayed, so a
+# hung browser or live-server test should not hold them for the full-suite
+# budget. Suite modes (no label, or a --mode flag) keep the long default.
+case "${1:-}" in
+  "" | --*) DEFAULT_TEST_TIMEOUT=2700 ;;
+  *) DEFAULT_TEST_TIMEOUT=600 ;;
+esac
+FLOPPY_TEST_TIMEOUT="${FLOPPY_TEST_TIMEOUT:-$DEFAULT_TEST_TIMEOUT}"
 
 # Dump every thread's stack shortly before the timeout kills the run, so a
 # lost-result hang leaves evidence instead of just a non-zero exit. Only worth
