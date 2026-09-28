@@ -600,7 +600,30 @@ class IntegrationTest(StaticLiveServerTestCase):
         track_modal.get_by_role("button", name="Close").click()
         expect(self.page.locator("[data-track-modal-root]:visible")).to_have_count(0)
 
-        history_button.click()
+        # Hold the history response back so the reopened modal can be seen
+        # before it arrives: the stale track form must not flash in it.
+        stale_forms_shown = history_button.evaluate(
+            """async (button) => {
+                const open = XMLHttpRequest.prototype.open;
+                const send = XMLHttpRequest.prototype.send;
+                XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+                    this._delayed = String(url).includes("/history_modal/");
+                    return open.call(this, method, url, ...rest);
+                };
+                XMLHttpRequest.prototype.send = function (...args) {
+                    if (!this._delayed) return send.apply(this, args);
+                    setTimeout(() => send.apply(this, args), 1500);
+                };
+                button.click();
+                await new Promise((resolve) => Alpine.nextTick(resolve));
+                await new Promise((resolve) => requestAnimationFrame(resolve));
+                XMLHttpRequest.prototype.open = open;
+                XMLHttpRequest.prototype.send = send;
+                return [...document.querySelectorAll("[data-track-modal-root]")]
+                    .filter((root) => root.offsetParent).length;
+            }""",
+        )
+        self.assertEqual(stale_forms_shown, 0)
         expect(
             self.page.locator("[data-history-modal-root]:visible").first
         ).to_contain_text("Activity History")

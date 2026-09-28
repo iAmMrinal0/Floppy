@@ -343,12 +343,24 @@ function trackModalHandleToast(event) {
   window.showTrackToast(event.detail || {});
 }
 
+// History buttons reload their modal on every open, and editing a watch
+// replaces the modal body with the track form. Empty the target before the
+// request so reopening never flashes that stale form ahead of the list.
+function historyModalClearOnRequest(event) {
+  const config = event.detail?.requestConfig;
+  if (config?.verb !== "get" || !config.path?.includes("/history_modal/")) {
+    return;
+  }
+  event.detail.target?.replaceChildren();
+}
+
 // Bind once: this script is re-evaluated on boosted (hx-boost) navigation.
 if (!window.__floppyMediaStatusDateHandlerBound) {
   window.__floppyMediaStatusDateHandlerBound = true;
   document.addEventListener("closeModal", trackModalHandleClose);
   document.addEventListener("openModal", trackModalHandleOpen);
   document.addEventListener("showToast", trackModalHandleToast);
+  document.addEventListener("htmx:beforeRequest", historyModalClearOnRequest);
 }
 
 document.addEventListener("alpine:init", () => {
