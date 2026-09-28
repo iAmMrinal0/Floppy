@@ -1,15 +1,14 @@
-import time
 from unittest.mock import Mock
 
 from allauth.core.exceptions import ImmediateHttpResponse
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.backends.db import SessionStore
 from django.test import RequestFactory, TestCase
 
 from users.socialaccount_adapter import (
-    STALE_RETRY_SESSION_KEY,
+    STALE_RETRY_COOKIE,
+    STALE_RETRY_WINDOW_SECONDS,
     StaleCallbackSocialAccountAdapter,
 )
 
@@ -18,7 +17,7 @@ STALE_CONTEXT = {"state_id": "consumed", "callback_view": None}
 
 
 class StaleCallbackSocialAccountAdapterTests(TestCase):
-    """Tests for recovering from OAuth callbacks with a consumed state."""
+    """Tests for recovering from OAuth callbacks with a missing state."""
 
     def setUp(self):
         """Build a callback request with a session and a stub provider."""
@@ -28,7 +27,6 @@ class StaleCallbackSocialAccountAdapterTests(TestCase):
         self.request = RequestFactory().get("/accounts/oidc/pocketid/login/callback/")
         self.request.session = SessionStore()
         self.request.user = AnonymousUser()
-        self.request.COOKIES[settings.SESSION_COOKIE_NAME] = "existing"
 
     def _redirect_for(self, extra_context):
         with self.assertRaises(ImmediateHttpResponse) as caught:
@@ -49,35 +47,25 @@ class StaleCallbackSocialAccountAdapterTests(TestCase):
         self.assertEqual(response.url, "/")
 
     def test_anonymous_user_restarts_login_once(self):
-        """A stale callback should restart the provider login and mark the retry."""
+        """A missing state should restart the provider login and mark the retry."""
         response = self._redirect_for(dict(STALE_CONTEXT))
 
         self.assertEqual(response.url, LOGIN_URL)
-        self.assertIn(STALE_RETRY_SESSION_KEY, self.request.session)
+        retry_cookie = response.cookies[STALE_RETRY_COOKIE]
+        self.assertEqual(retry_cookie["max-age"], STALE_RETRY_WINDOW_SECONDS)
+        self.assertTrue(retry_cookie["httponly"])
+
+    def test_restarts_login_without_session_cookie(self):
+        """A callback that lost the session cookie should still retry once."""
+        self.assertNotIn("sessionid", self.request.COOKIES)
+
+        response = self._redirect_for(dict(STALE_CONTEXT))
+
+        self.assertEqual(response.url, LOGIN_URL)
 
     def test_recent_retry_falls_back_to_error_page(self):
-        """A second stale callback within the window should not loop."""
-        self.request.session[STALE_RETRY_SESSION_KEY] = time.time()
-
-        self.adapter.on_authentication_error(
-            self.request,
-            self.provider,
-            extra_context=dict(STALE_CONTEXT),
-        )
-
-        self.provider.get_login_url.assert_not_called()
-
-    def test_old_retry_marker_allows_new_retry(self):
-        """A retry marker outside the window should not block recovery."""
-        self.request.session[STALE_RETRY_SESSION_KEY] = time.time() - 3600
-
-        response = self._redirect_for(dict(STALE_CONTEXT))
-
-        self.assertEqual(response.url, LOGIN_URL)
-
-    def test_missing_session_cookie_falls_back_to_error_page(self):
-        """Without a session cookie a retry could never keep its state."""
-        del self.request.COOKIES[settings.SESSION_COOKIE_NAME]
+        """A second missing state within the window should not loop."""
+        self.request.COOKIES[STALE_RETRY_COOKIE] = "1"
 
         self.adapter.on_authentication_error(
             self.request,
