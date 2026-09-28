@@ -529,6 +529,42 @@ class IntegrationTest(StaticLiveServerTestCase):
         save_request.value.response()
         expect(self.page.get_by_role("main")).to_contain_text(f"Ended: {today}")
 
+    def test_episode_track_modal_close_button(self):
+        """The close button dismisses the episode modal when adding and editing."""
+        self.search_and_submit("breaking bad")
+        expect(self.page.locator("h2", has_text="Search Results")).to_be_visible()
+        self.page.get_by_title("Breaking Bad", exact=True).click()
+        expect(self.page.get_by_role("main")).to_contain_text("Breaking Bad")
+        season_href = self.page.locator(
+            'a[href*="/season/1"]',
+        ).first.get_attribute("href")
+        self.page.goto(f"{self.live_server_url}{season_href}")
+        expect(self.page.get_by_role("main")).to_contain_text("Breaking Bad")
+        visible_modals = self.page.locator("[data-track-modal-root]:visible")
+
+        self.page.locator('button[title="Track Episode"]:visible').first.click()
+        modal = visible_modals.first
+        expect(modal).to_be_visible()
+        modal.get_by_role("button", name="Close").click()
+        expect(visible_modals).to_have_count(0)
+
+        self.page.locator('button[title="Track Episode"]:visible').first.click()
+        with self.page.expect_request(
+            lambda request: request.method == "POST" and "/episode_save" in request.url,
+        ) as save_request:
+            modal.get_by_role("button", name="Add", exact=True).click()
+        save_request.value.response()
+        expect(visible_modals).to_have_count(0)
+
+        tracked_button = self.page.locator(
+            "button[title='Track Episode'][hx-vals*='instance_id']:visible",
+        ).first
+        expect(tracked_button).to_be_visible()
+        tracked_button.click()
+        expect(modal.get_by_role("button", name="Save as new entry")).to_be_visible()
+        modal.get_by_role("button", name="Close").click()
+        expect(visible_modals).to_have_count(0)
+
     def test_tv_completed(self):
         """Test the completed status of a TV show."""
         self.search_and_submit("breaking bad")

@@ -852,6 +852,48 @@ def _render_track_action_oob(request, instance, return_url):
     )
 
 
+def _render_episode_track_buttons_oob(
+    request,
+    episode,
+    *,
+    source,
+    media_id,
+    season_number,
+    episode_number,
+    return_url,
+):
+    """Render the season page's card and list track buttons for an OOB swap.
+
+    The season page renders these buttons from episode metadata, which carries
+    the identifiers the modal URL and target id are built from. The Episode
+    row passed in here has none of them, so the replacement buttons pointed at
+    nothing and reopened stale modal content.
+    """
+    button_episode = {
+        "source": source,
+        "media_type": MediaTypes.EPISODE.value,
+        "media_id": media_id,
+        "season_number": season_number,
+        "episode_number": episode_number,
+        "item": getattr(episode, "item", None),
+        "history": episode.history,
+    }
+    return "".join(
+        render_to_string(
+            "app/components/detail_episode_track_button.html",
+            {
+                "episode": button_episode,
+                "target_suffix": target_suffix,
+                "track_button_oob": True,
+                # request.path is the save or poll endpoint, not the page.
+                "detail_return_url": return_url,
+            },
+            request=request,
+        )
+        for target_suffix in ("", "-list")
+    )
+
+
 def _write_episode_save_oob(
     response,
     request,
@@ -952,18 +994,17 @@ def _write_episode_save_oob(
         # Season-progress spans only exist on the season page — nothing to target here.
         return
 
-    for target_suffix in ("", "-list"):
-        response.write(
-            render_to_string(
-                "app/components/detail_episode_track_button.html",
-                {
-                    "episode": episode,
-                    "target_suffix": target_suffix,
-                    "track_button_oob": True,
-                },
-                request=request,
-            ),
-        )
+    response.write(
+        _render_episode_track_buttons_oob(
+            request,
+            episode,
+            source=source,
+            media_id=media_id,
+            season_number=season_number,
+            episode_number=episode_number,
+            return_url=parsed_next,
+        ),
+    )
     response.write(
         render_to_string(
             "app/components/detail_episode_history_line.html",
@@ -1284,18 +1325,18 @@ def episode_history_poll(request, season_id):
             .first()
         )
 
-        for target_suffix in ("", "-list"):
-            response.write(
-                render_to_string(
-                    "app/components/detail_episode_track_button.html",
-                    {
-                        "episode": episode,
-                        "target_suffix": target_suffix,
-                        "track_button_oob": True,
-                    },
-                    request=request,
-                ),
-            )
+        season_item = related_season.item
+        response.write(
+            _render_episode_track_buttons_oob(
+                request,
+                episode,
+                source=season_item.source,
+                media_id=season_item.media_id,
+                season_number=season_item.season_number,
+                episode_number=episode.item.episode_number,
+                return_url=media_url(season_item),
+            ),
+        )
         response.write(
             render_to_string(
                 "app/components/detail_episode_history_line.html",
