@@ -56,3 +56,6 @@ docs/superpowers/
 .worktrees/
 desktop/
 dump.rdb
+
+# nix develop / direnv
+.direnv/

@@ -294,6 +294,7 @@ Models/migrations and divergent UI normally require manual adaptation. Provider 
 - Treat `wiki/` as its own git repo (not a submodule); run commits/pushes from `wiki/`.
 - Do not add `wiki/` to the main repo index; it should remain untracked here.
 - Primary local development is source-run Django with Redis, Celery worker/beat, and Tailwind watcher.
+- Run every local command inside the Nix dev shell (`nix develop`, or direnv via `.envrc`). `flake.nix` pins uv, ruff, Python, Redis and Node; bump its uv/ruff pins together with `pyproject.toml`, `uv.lock` and the Dockerfile.
 - Secondary Docker usage is for deployment or quick smoke runs; the compose files use the prebuilt `ghcr.io/dannyvfilms/floppy` image.
 
 ## Agent Docs
