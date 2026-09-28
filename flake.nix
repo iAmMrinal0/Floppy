@@ -1,10 +1,19 @@
 {
   description = "Floppy development environment";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # Browser builds must match the playwright version in uv.lock (1.62,
+    # Chromium revision 1234). Move this pin together with that version.
+    nixpkgs-playwright.url = "github:NixOS/nixpkgs/6959e56fb649818335ef46fbb6c695d47587caff";
+  };
 
   outputs =
-    { self, nixpkgs }:
+    {
+      self,
+      nixpkgs,
+      nixpkgs-playwright,
+    }:
     let
       systems = [
         "x86_64-linux"
@@ -104,6 +113,14 @@
                 pkgs.zlib
               ]
             );
+
+            # The playwright wheel bundles a glibc node; use nixpkgs' node and
+            # browsers instead (Linux only, where nixpkgs builds them).
+            PLAYWRIGHT_NODEJS_PATH = "${pkgs.nodejs_22}/bin/node";
+            PLAYWRIGHT_BROWSERS_PATH = pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux "${
+              nixpkgs-playwright.legacyPackages.${pkgs.stdenv.hostPlatform.system}.playwright-driver.browsers
+            }";
+            PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = "true";
 
             # uv sync reinstalls the wheel's ruff; re-point it on every entry.
             shellHook = pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
