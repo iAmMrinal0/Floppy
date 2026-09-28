@@ -157,7 +157,9 @@ class IntegrationTest(StaticLiveServerTestCase):
             }"""
         )
         self.page.locator("#contention-test-button").click()
-        expect(self.page.locator("#contention-test-target #contention-loaded")).to_be_visible()
+        expect(
+            self.page.locator("#contention-test-target #contention-loaded")
+        ).to_be_visible()
         self.assertEqual(len(requests), 3)
         for request_url in requests:
             query = parse_qs(urlparse(request_url).query)
